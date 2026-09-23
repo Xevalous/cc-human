@@ -14,10 +14,17 @@ A skill (`/cc-human:human-writing`) holds the full 10-section rules. A command (
 
 ## Install
 
-This repository is a marketplace. Add it from GitHub, then install the plugin.
+This repository is a marketplace. Add it from GitHub, then install the plugin. Either shorthand works:
 
 ```powershell
 claude plugin marketplace add Xevalous/cc-human
+claude plugin install cc-human@cc-human
+```
+
+Or the full URL:
+
+```powershell
+claude plugin marketplace add https://github.com/Xevalous/cc-human
 claude plugin install cc-human@cc-human
 ```
 
