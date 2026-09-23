@@ -42,6 +42,31 @@ function getToolContent(toolName, toolInput) {
   return null;
 }
 
+// True when an Edit or MultiEdit only touches text inside fenced code blocks
+// of the file on disk. The fragment then holds diagram or code content (a
+// mermaid arrow like -->, a config sample), not prose, so scanning it would
+// only produce false positives. Returns false when the file or the target
+// strings cannot be found: the fragment then gets scanned as before.
+function editsInsideCodeFences(filePath, toolName, toolInput) {
+  if (toolName !== 'Edit' && toolName !== 'MultiEdit') return false;
+  let fileContent;
+  try {
+    fileContent = fs.readFileSync(filePath, 'utf8');
+  } catch (e) {
+    return false;
+  }
+  if (toolName === 'Edit') {
+    const oldStr = typeof toolInput.old_string === 'string' ? toolInput.old_string : '';
+    return rules.allOccurrencesInsideFences(fileContent, oldStr);
+  }
+  const edits = Array.isArray(toolInput.edits) ? toolInput.edits : [];
+  if (edits.length === 0) return false;
+  return edits.every(function (e) {
+    return !!e && typeof e.old_string === 'string' &&
+      rules.allOccurrencesInsideFences(fileContent, e.old_string);
+  });
+}
+
 function emitPreDeny(reason) {
   const out = {
     hookSpecificOutput: {
@@ -87,6 +112,10 @@ function main() {
     const content = getToolContent(toolName, toolInput);
     if (!content) process.exit(0);
     if (content.indexOf(rules.SKIP_MARKER) !== -1) process.exit(0);
+    // An Edit aimed entirely at the inside of a fenced code block carries
+    // diagram or code content, not prose. Scanning the fragment out of
+    // context only produces false positives (mermaid arrows, say), so skip.
+    if (editsInsideCodeFences(filePath, toolName, toolInput)) process.exit(0);
     // Hard rules and banned phrases fire on any occurrence, so they apply to
     // both full files (Write) and fragments (Edit, MultiEdit). Density needs a
     // full file to be meaningful, so only run it on Write.

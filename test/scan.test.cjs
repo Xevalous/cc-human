@@ -145,5 +145,83 @@ function ok(name, cond) {
   ok('banned phrase in comment not flagged', v.length === 0);
 })();
 
+// 19. Mermaid and ASCII diagram arrows are not double-hyphen violations,
+// even outside a fence (an Edit fragment arrives without its fence).
+(function () {
+  const c = 'graph TD\n  A([Mulai]) --> B[Login]\n  B -- success --> C\n  C --> D[Done]\n';
+  const v = rules.findHardViolations(c);
+  ok('mermaid arrows not flagged', v.length === 0);
+})();
+
+(function () {
+  const cases = ['x <-- y', 'x <--> y', 'x ==> y', 'x === y', 'x --- y', 'x ->> y'];
+  cases.forEach(function (line) {
+    const v = rules.findHardViolations(line + '\n');
+    ok('arrow ' + JSON.stringify(line) + ' not flagged', v.length === 0);
+  });
+})();
+
+// 20. CLI-style flags and CSS custom properties are not double hyphens.
+(function () {
+  const v = rules.findHardViolations('Run git commit --amend, then retry with --dry-run.\n');
+  ok('cli flags not flagged', v.length === 0);
+  const v2 = rules.findHardViolations('Set --primary-color in the stylesheet.\n');
+  ok('css custom property not flagged', v2.length === 0);
+})();
+
+// 21. A real double hyphen in prose is still caught, at any boundary.
+(function () {
+  const v = rules.findHardViolations('A sentence--with a double hyphen.\n');
+  ok('prose double hyphen still flagged', v.length === 1 && v[0].rule === 'double-hyphen');
+  const v2 = rules.findHardViolations('Trailing dash-- here.\n');
+  ok('trailing double hyphen still flagged', v2.length === 1);
+  const v3 = rules.findHardViolations('Mid-- word.\n');
+  ok('mid-line double hyphen still flagged', v3.length === 1);
+})();
+
+// 22. A double hyphen that does not hug a word on its left (spaced dashes,
+// CLI flags, a dash opening a phrase) is ambiguous with flag syntax, so it
+// is treated as syntax, not a prose dash.
+(function () {
+  const v = rules.findHardViolations('Leading -- dash here.\n');
+  ok('spaced double hyphen not flagged', v.length === 0);
+  const v2 = rules.findHardViolations('Leading --dash here.\n');
+  ok('phrase-opening --dash not flagged', v2.length === 0);
+})();
+
+// 22. fenceRanges and allOccurrencesInsideFences.
+(function () {
+  const file = '# Doc\n\n```mermaid\ngraph TD\n  A([Mulai]) --> B[Login]\n```\n\nProse here.\n';
+  const ranges = rules.fenceRanges(file);
+  ok('one fence range found', ranges.length === 1);
+  const inside = file.slice(ranges[0][0], ranges[0][1]);
+  ok('range covers the diagram', inside.indexOf('A([Mulai]) --> B[Login]') !== -1);
+  ok('old_string inside fence detected',
+    rules.allOccurrencesInsideFences(file, '  A([Mulai]) --> B[Login]\n'));
+  ok('old_string in prose not inside fence',
+    !rules.allOccurrencesInsideFences(file, 'Prose here.'));
+  ok('empty old_string not inside fence',
+    !rules.allOccurrencesInsideFences(file, ''));
+  ok('absent old_string not inside fence',
+    !rules.allOccurrencesInsideFences(file, 'not in the file'));
+  ok('no fences means false',
+    !rules.allOccurrencesInsideFences('Just prose.\n', 'Just prose.'));
+})();
+
+// 23. Unclosed fence runs to end of file.
+(function () {
+  const file = 'Intro.\n\n```\ncode --here\n';
+  const ranges = rules.fenceRanges(file);
+  ok('unclosed fence reaches EOF', ranges.length === 1 && ranges[0][1] === file.length);
+  ok('old_string in unclosed fence detected',
+    rules.allOccurrencesInsideFences(file, 'code --here\n'));
+})();
+
+// 24. Tilde fences work, and a closing fence needs no info string.
+(function () {
+  const file = '~~~txt\nsome --code\n~~~\n';
+  ok('tilde fence detected', rules.allOccurrencesInsideFences(file, 'some --code\n'));
+})();
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail === 0 ? 0 : 1);

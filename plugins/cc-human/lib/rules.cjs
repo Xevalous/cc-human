@@ -57,6 +57,52 @@ function splitSections(content) {
   return parts.map(function (p) { return p.trim(); }).filter(Boolean);
 }
 
+// Compute the character ranges covered by fenced code blocks (``` or ~~~).
+// Edit and MultiEdit only hand the scanner a fragment, so a change aimed at
+// the inside of a fence (mermaid diagram source, a config sample) arrives
+// with no fence markers around it. The scanner uses these ranges against the
+// file on disk to tell such fragments apart from prose.
+function fenceRanges(content) {
+  const s = String(content || '');
+  const ranges = [];
+  const re = /^[ \t]{0,3}(`{3,}|~{3,})[ \t]*([^\n]*)$/gm;
+  let open = null;
+  let m;
+  while ((m = re.exec(s)) !== null) {
+    if (open === null) {
+      open = { start: m.index, marker: m[1].charAt(0), len: m[1].length };
+    } else if (m[1].charAt(0) === open.marker && m[1].length >= open.len && m[2].trim() === '') {
+      // A closing fence repeats the marker and takes no info string.
+      ranges.push([open.start, m.index + m[0].length]);
+      open = null;
+    }
+  }
+  if (open !== null) ranges.push([open.start, s.length]);
+  return ranges;
+}
+
+// True when every occurrence of needle lies inside a fenced code block in
+// haystack. Returns false when the string is absent or crosses a boundary:
+// in both cases the scanner falls back to checking the fragment directly.
+function allOccurrencesInsideFences(haystack, needle) {
+  const s = String(haystack || '');
+  if (!needle) return false;
+  const ranges = fenceRanges(s);
+  if (ranges.length === 0) return false;
+  let idx = s.indexOf(needle);
+  if (idx === -1) return false;
+  while (idx !== -1) {
+    const end = idx + needle.length;
+    let inside = false;
+    for (let i = 0; i < ranges.length; i++) {
+      if (idx >= ranges[i][0] && end <= ranges[i][1]) { inside = true; break; }
+    }
+    if (!inside) return false;
+    idx = s.indexOf(needle, end);
+  }
+  return true;
+}
+
 function countTerm(lowerText, term) {
   if (term.indexOf(' ') !== -1 || term.indexOf('-') !== -1) {
     let count = 0;
@@ -92,7 +138,14 @@ const HARD_RULES = [
   {
     id: 'double-hyphen',
     name: 'Double hyphen',
-    re: /--/g,
+    // A prose double hyphen is a dash stand-in, so it hugs the word on its
+    // left (word--word, word-- then a space). Anything else is syntax, not
+    // a dash: diagram arrows (-->, <--, ---), arrow labels (-- yes -->),
+    // CLI flags (--apply), CSS custom properties (--color). The trade-off:
+    // a dash opening a phrase (-- like this) reads as the flag form and
+    // is not flagged; that shape is ambiguous with real flags, and the
+    // persona bans it regardless when it appears in prose.
+    re: /(?<=[\p{L}\p{N}])--/gu,
     fix: 'Replace the double hyphen with a period, comma, colon, or parentheses.'
   },
   {
@@ -313,6 +366,8 @@ module.exports = {
   getExtension: getExtension,
   isProsePath: isProsePath,
   stripForScan: stripForScan,
+  fenceRanges: fenceRanges,
+  allOccurrencesInsideFences: allOccurrencesInsideFences,
   findHardViolations: findHardViolations,
   findBannedPhraseViolations: findBannedPhraseViolations,
   findDensityViolations: findDensityViolations,

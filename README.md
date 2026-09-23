@@ -66,6 +66,11 @@ Before scanning, these regions are stripped so they do not cause false positives
 - Horizontal rules and table separator lines
 - Setext heading underlines
 
+Two more accommodations keep diagram and code syntax out of the hard rules:
+
+- An `Edit` or `MultiEdit` whose target text sits entirely inside a fenced code block in the file on disk is skipped: the fragment is diagram or code content, not prose.
+- The double-hyphen rule only fires when the hyphens hug a word on their left (`word--word`). Diagram arrows (`-->`, `<--`, `---`), CLI flags (`--apply`), and CSS custom properties (`--color`) are never flagged, even outside a fence. The trade-off: a double hyphen opening a phrase (`-- like this`) is ambiguous with flag syntax, so it is not flagged; the persona still bans that shape in prose.
+
 ## Exempt a file
 
 If a file legitimately needs to list banned terms (a reference document, this README, the skill itself), add this marker anywhere in the file:
