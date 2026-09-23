@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "cc-human",
   "displayName": "Human Persona Rules",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Enforces the Human persona writing rules. Hard-blocks em dashes, curly quotes, double hyphens, and chatbot artifacts on Write/Edit/MultiEdit, and flags watchlist vocabulary and banned phrases by density per section.",
   "author": {
     "name": "Xevalous"
