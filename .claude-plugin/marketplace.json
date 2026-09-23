@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "cc-human",
+  "description": "Local marketplace for the cc-human plugin, which enforces the Human persona writing rules on every session.",
+  "owner": {
+    "name": "Xevalous"
+  },
+  "plugins": [
+    {
+      "name": "cc-human",
+      "source": "./plugins/cc-human",
+      "description": "Enforces the Human persona writing rules: hard-blocks em dashes, curly quotes, double hyphens, and chatbot artifacts on Write/Edit, and flags watchlist vocabulary by density.",
+      "category": "writing",
+      "homepage": "https://github.com/Xevalous/cc-human"
+    }
+  ]
+}
